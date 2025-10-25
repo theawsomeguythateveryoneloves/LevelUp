@@ -334,7 +334,8 @@
         setInterval(() => {
             if (coinsPerSecond > 0) {
                 coins += coinsPerSecond / 10;
-                updateDisplay();
+                coinCountEl.textContent = Math.floor(coins);
+                coinsPerSecondEl.textContent = coinsPerSecond.toFixed(1);
             }
         }, 100);
 
