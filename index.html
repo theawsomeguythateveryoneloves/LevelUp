@@ -26,7 +26,7 @@
             border-radius: 20px;
             padding: 40px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 800px;
+            max-width: 900px;
             width: 100%;
         }
 
@@ -49,7 +49,7 @@
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
         }
 
-        .coins-per-click {
+        .coins-per-click, .coins-per-second {
             font-size: 1.2em;
             color: #666;
             margin-top: 10px;
@@ -89,12 +89,21 @@
             margin-top: 10px;
         }
 
-        .shop {
+        .shops {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
             margin-top: 40px;
         }
 
+        .shop {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 15px;
+        }
+
         .shop-title {
-            font-size: 1.8em;
+            font-size: 1.5em;
             color: #667eea;
             margin-bottom: 20px;
             text-align: center;
@@ -106,9 +115,9 @@
         }
 
         .upgrade {
-            background: #f8f9fa;
+            background: white;
             border-radius: 10px;
-            padding: 20px;
+            padding: 15px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -116,7 +125,7 @@
         }
 
         .upgrade:hover {
-            transform: translateX(5px);
+            background: #f8f9fa;
         }
 
         .upgrade-info {
@@ -124,7 +133,7 @@
         }
 
         .upgrade-name {
-            font-size: 1.3em;
+            font-size: 1.1em;
             font-weight: bold;
             color: #333;
             margin-bottom: 5px;
@@ -132,16 +141,16 @@
 
         .upgrade-desc {
             color: #666;
-            font-size: 0.9em;
+            font-size: 0.85em;
         }
 
         .upgrade-btn {
             background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
             border: none;
-            padding: 12px 24px;
+            padding: 10px 20px;
             border-radius: 8px;
-            font-size: 1em;
+            font-size: 0.9em;
             cursor: pointer;
             transition: all 0.3s;
             white-space: nowrap;
@@ -162,7 +171,15 @@
             background: #e8f5e9;
             color: #4caf50;
             font-weight: bold;
-            margin-left: 10px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        @media (max-width: 768px) {
+            .shops {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -175,6 +192,9 @@
             <div class="coins-per-click">
                 Coins per click: <span id="coinsPerClick">1</span>
             </div>
+            <div class="coins-per-second">
+                Coins per second: <span id="coinsPerSecond">0</span>
+            </div>
         </div>
 
         <div class="click-area">
@@ -182,17 +202,25 @@
             <div class="instruction">Press SPACEBAR or click the coin!</div>
         </div>
 
-        <div class="shop">
-            <h2 class="shop-title">🛒 Upgrade Shop</h2>
-            <div class="upgrades" id="upgrades"></div>
+        <div class="shops">
+            <div class="shop">
+                <h2 class="shop-title">🖱️ Click Upgrades</h2>
+                <div class="upgrades" id="clickUpgrades"></div>
+            </div>
+            
+            <div class="shop">
+                <h2 class="shop-title">🤖 Auto Clickers</h2>
+                <div class="upgrades" id="autoUpgrades"></div>
+            </div>
         </div>
     </div>
 
     <script>
         let coins = 0;
         let coinsPerClick = 1;
+        let coinsPerSecond = 0;
         
-        const upgrades = [
+        const clickUpgrades = [
             { name: 'Bronze Clicker', cost: 10, boost: 2, owned: 0 },
             { name: 'Silver Clicker', cost: 50, boost: 5, owned: 0 },
             { name: 'Gold Clicker', cost: 200, boost: 10, owned: 0 },
@@ -201,10 +229,21 @@
             { name: 'Legendary Clicker', cost: 5000, boost: 100, owned: 0 }
         ];
 
+        const autoUpgrades = [
+            { name: 'Basic Bot', cost: 100, cps: 1, owned: 0 },
+            { name: 'Worker Bot', cost: 500, cps: 5, owned: 0 },
+            { name: 'Mining Rig', cost: 2000, cps: 15, owned: 0 },
+            { name: 'Coin Factory', cost: 8000, cps: 50, owned: 0 },
+            { name: 'Mega Factory', cost: 30000, cps: 150, owned: 0 },
+            { name: 'Quantum Miner', cost: 100000, cps: 500, owned: 0 }
+        ];
+
         const coinCountEl = document.getElementById('coinCount');
         const coinsPerClickEl = document.getElementById('coinsPerClick');
+        const coinsPerSecondEl = document.getElementById('coinsPerSecond');
         const clickBtn = document.getElementById('clickBtn');
-        const upgradesEl = document.getElementById('upgrades');
+        const clickUpgradesEl = document.getElementById('clickUpgrades');
+        const autoUpgradesEl = document.getElementById('autoUpgrades');
 
         function addCoins() {
             coins += coinsPerClick;
@@ -212,13 +251,14 @@
         }
 
         function updateDisplay() {
-            coinCountEl.textContent = coins;
+            coinCountEl.textContent = Math.floor(coins);
             coinsPerClickEl.textContent = coinsPerClick;
+            coinsPerSecondEl.textContent = coinsPerSecond.toFixed(1);
             renderUpgrades();
         }
 
-        function buyUpgrade(index) {
-            const upgrade = upgrades[index];
+        function buyClickUpgrade(index) {
+            const upgrade = clickUpgrades[index];
             if (coins >= upgrade.cost) {
                 coins -= upgrade.cost;
                 upgrade.owned++;
@@ -228,25 +268,52 @@
             }
         }
 
+        function buyAutoUpgrade(index) {
+            const upgrade = autoUpgrades[index];
+            if (coins >= upgrade.cost) {
+                coins -= upgrade.cost;
+                upgrade.owned++;
+                coinsPerSecond += upgrade.cps;
+                upgrade.cost = Math.floor(upgrade.cost * 1.3);
+                updateDisplay();
+            }
+        }
+
         function renderUpgrades() {
-            upgradesEl.innerHTML = '';
-            upgrades.forEach((upgrade, index) => {
+            clickUpgradesEl.innerHTML = '';
+            clickUpgrades.forEach((upgrade, index) => {
                 const div = document.createElement('div');
                 div.className = 'upgrade';
-                
                 const canBuy = coins >= upgrade.cost;
                 
                 div.innerHTML = `
                     <div class="upgrade-info">
-                        <div class="upgrade-name">${upgrade.name}</div>
-                        <div class="upgrade-desc">+${upgrade.boost} coins per click ${upgrade.owned > 0 ? `<span class="owned">(Owned: ${upgrade.owned})</span>` : ''}</div>
+                        <div class="upgrade-name">${upgrade.name} ${upgrade.owned > 0 ? `<span class="owned">${upgrade.owned}</span>` : ''}</div>
+                        <div class="upgrade-desc">+${upgrade.boost} per click</div>
                     </div>
-                    <button class="upgrade-btn" ${!canBuy ? 'disabled' : ''} onclick="buyUpgrade(${index})">
+                    <button class="upgrade-btn" ${!canBuy ? 'disabled' : ''} onclick="buyClickUpgrade(${index})">
                         ${upgrade.cost} 💰
                     </button>
                 `;
+                clickUpgradesEl.appendChild(div);
+            });
+
+            autoUpgradesEl.innerHTML = '';
+            autoUpgrades.forEach((upgrade, index) => {
+                const div = document.createElement('div');
+                div.className = 'upgrade';
+                const canBuy = coins >= upgrade.cost;
                 
-                upgradesEl.appendChild(div);
+                div.innerHTML = `
+                    <div class="upgrade-info">
+                        <div class="upgrade-name">${upgrade.name} ${upgrade.owned > 0 ? `<span class="owned">${upgrade.owned}</span>` : ''}</div>
+                        <div class="upgrade-desc">+${upgrade.cps} coins/sec</div>
+                    </div>
+                    <button class="upgrade-btn" ${!canBuy ? 'disabled' : ''} onclick="buyAutoUpgrade(${index})">
+                        ${upgrade.cost} 💰
+                    </button>
+                `;
+                autoUpgradesEl.appendChild(div);
             });
         }
 
@@ -262,6 +329,14 @@
                 }, 100);
             }
         });
+
+        // Auto clicker loop
+        setInterval(() => {
+            if (coinsPerSecond > 0) {
+                coins += coinsPerSecond / 10;
+                updateDisplay();
+            }
+        }, 100);
 
         updateDisplay();
     </script>
